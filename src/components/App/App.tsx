@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import ReactPaginate from "react-paginate";
@@ -18,14 +18,20 @@ function App() {
   const [page, setPage] = useState<number>(1);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
-  const { data, isLoading, isFetching, isError } = useQuery({
+  const { data, isPending, isSuccess, isError } = useQuery({
     queryKey: ["movies", query, page],
     queryFn: () => fetchMovies({ query, page }),
     enabled: query !== "",
     placeholderData: keepPreviousData,
   });
 
-  const handleSearch = (newQuery: string) => {
+  useEffect(() => {
+    if (isSuccess && data && data.results.length === 0) {
+      toast("No movies found. Try a different query.");
+    }
+  }, [isSuccess, data]);
+
+  const handleSearch = (newQuery: string): void => {
     if (!newQuery.trim()) {
       toast.error("Please enter your search query.");
       return;
@@ -37,17 +43,23 @@ function App() {
     }
   };
 
-  const closeModal = () => setSelectedMovie(null);
+  const closeModal = (): void => {
+    setSelectedMovie(null);
+  };
+
+  const handleSelectMovie = (movie: Movie): void => {
+    setSelectedMovie(movie);
+  };
 
   return (
     <>
       <Toaster />
       <SearchBar onSubmit={handleSearch} />
 
-      {(isLoading || isFetching) && <Loader />}
-      {isError && <ErrorMessage />}
+      {query && isPending && <Loader />}
+      {query && isError && <ErrorMessage />}
 
-      {data && data.results.length > 0 && (
+      {query && isSuccess && data && data.results.length > 0 && (
         <>
           {data.total_pages > 1 && (
             <ReactPaginate
@@ -62,7 +74,7 @@ function App() {
               previousLabel="←"
             />
           )}
-          <MovieGrid movies={data.results} onSelect={setSelectedMovie} />
+          <MovieGrid movies={data.results} onSelect={handleSelectMovie} />
         </>
       )}
 
